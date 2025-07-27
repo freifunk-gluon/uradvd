@@ -90,6 +90,7 @@ static struct global {
 	const char *ifname;
 
 	uint32_t adv_valid_lifetime;
+	uint32_t adv_preferred_lifetime;
 	uint16_t adv_default_lifetime;
 
 	size_t n_prefixes;
@@ -102,6 +103,7 @@ static struct global {
 	.rtnl_sock = -1,
 	.icmp_sock = -1,
 	.adv_valid_lifetime = AdvValidLifetime,
+	.adv_preferred_lifetime = AdvPreferredLifetime,
 	.adv_default_lifetime = AdvDefaultLifetime,
 };
 
@@ -510,7 +512,7 @@ static void send_advert(void) {
 			.nd_opt_pi_prefix_len = 64,
 			.nd_opt_pi_flags_reserved = flags,
 			.nd_opt_pi_valid_time = htonl(G.adv_valid_lifetime),
-			.nd_opt_pi_preferred_time = htonl(AdvPreferredLifetime),
+			.nd_opt_pi_preferred_time = htonl(G.adv_preferred_lifetime),
 			.nd_opt_pi_prefix = G.prefixes[i],
 		};
 	}
@@ -576,7 +578,7 @@ static void send_advert(void) {
 
 
 static void usage(void) {
-	fprintf(stderr, "Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ] [ --default-lifetime <seconds> ] [ --rdnss <ip> ... ] [ --valid-lifetime <seconds> ]\n");
+	fprintf(stderr, "Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ] [ --default-lifetime <seconds> ] [ --rdnss <ip> ... ] [ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ]\n");
 }
 
 static void add_rdnss(const char *ip) {
@@ -637,6 +639,7 @@ static void parse_cmdline(int argc, char *argv[]) {
 		{"default-lifetime", required_argument, 0, 0},
 		{"rdnss", required_argument, 0, 1},
 		{"valid-lifetime", required_argument, 0, 2},
+		{"preferred-lifetime", required_argument, 0, 3},
 		{0, 0, 0, 0}
 	};
 
@@ -665,6 +668,16 @@ static void parse_cmdline(int argc, char *argv[]) {
 				exit_error("invalid valid lifetime\n", 0);
 
 			G.adv_valid_lifetime = val;
+
+			break;
+
+		case 3: // --preferred-lifetime
+			val = strtoul(optarg, &endptr, 0);
+
+			if (!*optarg || *endptr || val > UINT32_MAX)
+				exit_error("invalid preferred lifetime\n", 0);
+
+			G.adv_preferred_lifetime = val;
 
 			break;
 
@@ -700,6 +713,9 @@ int main(int argc, char *argv[]) {
 
 	if (!G.ifname || !G.n_prefixes)
 		exit_error("interface and prefix arguments are required.\n", 0);
+
+	if (G.adv_preferred_lifetime > G.adv_valid_lifetime)
+		exit_error("The preferred lifetime must be less or equal than the valid lifetime.\n", 0);
 
 	init_random();
 	init_icmp();
