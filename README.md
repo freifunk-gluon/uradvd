@@ -3,7 +3,7 @@
 A tiny IPv6 router advertisement daemon.
 
 ```
-Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ] [ --default-lifetime <seconds> ] [ --rdnss <ip> ... ] [ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ]
+Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ] [ --default-lifetime <seconds> ] [ --rdnss <ip> ... ] [ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ] [ --max-router-adv-interval <seconds> ]
 ```
 
 * `-i <interface>`: interface to listen on (e.g. `eth0`)
@@ -13,5 +13,6 @@ Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ] [ --defa
 * `--rdnss <ip>`: DNS server (e.g. `2001:4860:4860::8888`)
 * `--valid-lifetime <seconds>`: The total time the prefix remains available before becoming unusable (default is `86400` seconds => one day)
 * `--preferred-lifetime <seconds>`: The span of time during which the address can be freely used as a source and destination for traffic. Should be less or equal valid-lifetime. (default is `14400` seconds => 4h)
+* `--max-router-adv-interval <seconds>`: The maximum time allowed between sending unsolicited multicast router advertisements from the interface, in seconds. (default is `600` seconds => 10m)
 
 This program is packaged for [OpenWrt](https://openwrt.org/).
