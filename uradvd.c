@@ -94,6 +94,7 @@ static struct global {
 	uint16_t adv_default_lifetime;
 
 	uint16_t max_rtr_adv_interval;
+	uint16_t min_rtr_adv_interval;
 
 	size_t n_prefixes;
 	struct in6_addr prefixes[MAX_PREFIXES];
@@ -108,6 +109,7 @@ static struct global {
 	.adv_preferred_lifetime = AdvPreferredLifetime,
 	.adv_default_lifetime = AdvDefaultLifetime,
 	.max_rtr_adv_interval = MaxRtrAdvInterval,
+	.min_rtr_adv_interval = MinRtrAdvInterval,
 };
 
 
@@ -224,7 +226,7 @@ static void schedule_advert(bool nodelay) {
 	if (nodelay)
 		timespec_add(&t, rand_range(0, MAX_RA_DELAY_TIME));
 	else
-		timespec_add(&t, rand_range(MinRtrAdvInterval*1000, G.max_rtr_adv_interval*1000));
+		timespec_add(&t, rand_range(G.min_rtr_adv_interval*1000, G.max_rtr_adv_interval*1000));
 
 	if (timespec_after(&G.next_advert_earliest, &t))
 		t = G.next_advert_earliest;
@@ -581,7 +583,7 @@ static void send_advert(void) {
 
 
 static void usage(void) {
-	fprintf(stderr, "Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ] [ --default-lifetime <seconds> ] [ --rdnss <ip> ... ] [ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ] [ --max-router-adv-interval <seconds> ]\n");
+	fprintf(stderr, "Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ] [ --default-lifetime <seconds> ] [ --rdnss <ip> ... ] [ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ] [ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]\n");
 }
 
 static void add_rdnss(const char *ip) {
@@ -644,6 +646,7 @@ static void parse_cmdline(int argc, char *argv[]) {
 		{"valid-lifetime", required_argument, 0, 2},
 		{"preferred-lifetime", required_argument, 0, 3},
 		{"max-router-adv-interval", required_argument, 0, 4},
+		{"min-router-adv-interval", required_argument, 0, 5},
 		{0, 0, 0, 0}
 	};
 
@@ -695,6 +698,16 @@ static void parse_cmdline(int argc, char *argv[]) {
 
 			break;
 
+		case 5: // --min-router-adv-interval
+			val = strtoul(optarg, &endptr, 0);
+
+			if (!*optarg || *endptr || val < 3 || val > 1350)
+				exit_error("invalid minimal router advertisement interval\n", 0);
+
+			G.min_rtr_adv_interval = val;
+
+			break;
+
 		case 'i':
 			if (G.ifname)
 				exit_error("multiple interfaces are not supported.\n", 0);
@@ -731,6 +744,8 @@ int main(int argc, char *argv[]) {
 	if (G.adv_preferred_lifetime > G.adv_valid_lifetime)
 		exit_error("The preferred lifetime must be less or equal than the valid lifetime.\n", 0);
 
+	if (G.min_rtr_adv_interval > 0.75*G.max_rtr_adv_interval )
+		exit_error("The mininmal router advertisement interval must not be greater than 0.75 * max-rtr-adv-interval.\n", 0);
 
 	init_random();
 	init_icmp();
