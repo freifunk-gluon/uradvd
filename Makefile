@@ -1,4 +1,4 @@
-CFLAGS += -Wall
+CFLAGS += -Wall -Wextra
 
 all: uradvd
 uradvd: uradvd.o
