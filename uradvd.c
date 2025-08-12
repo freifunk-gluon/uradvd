@@ -111,7 +111,7 @@ static inline void print_error(const char *prefix, const char *message, int err)
 		fprintf(stderr, "uradvd: %s: %s\n", prefix, message);
 }
 
-static inline void exit_error(const char *message, int err) {
+static inline __attribute__ ((noreturn)) void exit_error(const char *message, int err) {
 	print_error("error", message, err);
 	exit(1);
 }
