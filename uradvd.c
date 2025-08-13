@@ -583,7 +583,10 @@ static void send_advert(void) {
 
 
 static void usage(void) {
-	fprintf(stderr, "Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ] [ --default-lifetime <seconds> ] [ --rdnss <ip> ... ] [ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ] [ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]\n");
+	fprintf(stderr, "Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ]\n"
+			"[ --default-lifetime <seconds> ] [ --rdnss <ip> ... ]\n"
+			"[ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ]\n"
+			"[ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]\n");
 }
 
 static void add_rdnss(const char *ip) {

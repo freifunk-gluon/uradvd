@@ -37,3 +37,6 @@ jobs:
 
       - name: Verify usage lines are in README
         run: '! grep -vxFf README.md <(./uradvd -h 2>&1)'
+
+      - name: Verify usage lines are less or equal of length 80
+        run: '[ $(./uradvd -h 2>&1 | wc -L) -le 80 ]'

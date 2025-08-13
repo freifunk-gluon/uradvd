@@ -3,7 +3,10 @@
 A tiny IPv6 router advertisement daemon.
 
 ```
-Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ] [ --default-lifetime <seconds> ] [ --rdnss <ip> ... ] [ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ] [ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]
+Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ]
+[ --default-lifetime <seconds> ] [ --rdnss <ip> ... ]
+[ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ]
+[ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]
 ```
 
 * `-i <interface>`: interface to listen on (e.g. `eth0`)
