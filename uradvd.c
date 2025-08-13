@@ -653,12 +653,12 @@ static void parse_cmdline(int argc, char *argv[]) {
 
 	static struct option long_options[] =
 	{
-		{"default-lifetime", required_argument, 0, OPT_DEFAULT_LIFETIME},
-		{"rdnss", required_argument, 0, OPT_RDNSS},
-		{"valid-lifetime", required_argument, 0, OPT_VALID_LIFETIME},
-		{"preferred-lifetime", required_argument, 0, OPT_PREFERRED_LIFETIME},
-		{"max-router-adv-interval", required_argument, 0, OPT_MAX_ROUTER_ADV_INTERVAL},
-		{"min-router-adv-interval", required_argument, 0, OPT_MIN_ROUTER_ADV_INTERVAL},
+		[OPT_DEFAULT_LIFETIME] = {"default-lifetime", required_argument, 0, 0},
+		[OPT_RDNSS] = {"rdnss", required_argument, 0, 0},
+		[OPT_VALID_LIFETIME] = {"valid-lifetime", required_argument, 0, 0},
+		[OPT_PREFERRED_LIFETIME] = {"preferred-lifetime", required_argument, 0, 0},
+		[OPT_MAX_ROUTER_ADV_INTERVAL] = {"max-router-adv-interval", required_argument, 0, 0},
+		[OPT_MIN_ROUTER_ADV_INTERVAL] = {"min-router-adv-interval", required_argument, 0, 0},
 		{0, 0, 0, 0}
 	};
 
@@ -666,58 +666,65 @@ static void parse_cmdline(int argc, char *argv[]) {
 
 	while ((c = getopt_long(argc, argv, "i:a:p:h", long_options, &option_index)) != -1) {
 		switch(c) {
-		case OPT_DEFAULT_LIFETIME:
-			val = strtoul(optarg, &endptr, 0);
+		case 0:
+			switch(option_index) {
+			case OPT_DEFAULT_LIFETIME:
+				val = strtoul(optarg, &endptr, 0);
 
-			if (!*optarg || *endptr || val > UINT16_MAX)
-				exit_error("invalid default lifetime\n", 0);
+				if (!*optarg || *endptr || val > UINT16_MAX)
+					exit_error("invalid default lifetime\n", 0);
 
-			G.adv_default_lifetime = val;
+				G.adv_default_lifetime = val;
 
-			break;
+				break;
 
-		case OPT_RDNSS:
-			add_rdnss(optarg);
-			break;
+			case OPT_RDNSS:
+				add_rdnss(optarg);
+				break;
 
-		case OPT_VALID_LIFETIME:
-			val = strtoul(optarg, &endptr, 0);
+			case OPT_VALID_LIFETIME:
+				val = strtoul(optarg, &endptr, 0);
 
-			if (!*optarg || *endptr || val > UINT32_MAX)
-				exit_error("invalid valid lifetime\n", 0);
+				if (!*optarg || *endptr || val > UINT32_MAX)
+					exit_error("invalid valid lifetime\n", 0);
 
-			G.adv_valid_lifetime = val;
+				G.adv_valid_lifetime = val;
 
-			break;
+				break;
 
-		case OPT_PREFERRED_LIFETIME:
-			val = strtoul(optarg, &endptr, 0);
+			case OPT_PREFERRED_LIFETIME:
+				val = strtoul(optarg, &endptr, 0);
 
-			if (!*optarg || *endptr || val > UINT32_MAX)
-				exit_error("invalid preferred lifetime\n", 0);
+				if (!*optarg || *endptr || val > UINT32_MAX)
+					exit_error("invalid preferred lifetime\n", 0);
 
-			G.adv_preferred_lifetime = val;
+				G.adv_preferred_lifetime = val;
 
-			break;
+				break;
 
-		case OPT_MAX_ROUTER_ADV_INTERVAL:
-			val = strtoul(optarg, &endptr, 0);
+			case OPT_MAX_ROUTER_ADV_INTERVAL:
+				val = strtoul(optarg, &endptr, 0);
 
-			if (!*optarg || *endptr || val < 4 || val > 1800)
-				exit_error("invalid maximal router advertisement interval\n", 0);
+				if (!*optarg || *endptr || val < 4 || val > 1800)
+					exit_error("invalid maximal router advertisement interval\n", 0);
 
-			G.max_rtr_adv_interval = val;
+				G.max_rtr_adv_interval = val;
 
-			break;
+				break;
 
-		case OPT_MIN_ROUTER_ADV_INTERVAL:
-			val = strtoul(optarg, &endptr, 0);
+			case OPT_MIN_ROUTER_ADV_INTERVAL:
+				val = strtoul(optarg, &endptr, 0);
 
-			if (!*optarg || *endptr || val < 3 || val > 1350)
-				exit_error("invalid minimal router advertisement interval\n", 0);
+				if (!*optarg || *endptr || val < 3 || val > 1350)
+					exit_error("invalid minimal router advertisement interval\n", 0);
 
-			G.min_rtr_adv_interval = val;
+				G.min_rtr_adv_interval = val;
 
+				break;
+
+			default:
+				exit_error("unknown option index\n", 0);
+			}
 			break;
 
 		case 'i':
