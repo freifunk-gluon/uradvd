@@ -56,6 +56,15 @@
 #define MIN_DELAY_BETWEEN_RAS 3000u
 
 
+enum {
+	OPT_DEFAULT_LIFETIME,
+	OPT_RDNSS,
+	OPT_VALID_LIFETIME,
+	OPT_PREFERRED_LIFETIME,
+	OPT_MAX_ROUTER_ADV_INTERVAL,
+	OPT_MIN_ROUTER_ADV_INTERVAL,
+};
+
 struct icmpv6_opt {
 	uint8_t type;
 	uint8_t length;
@@ -644,12 +653,12 @@ static void parse_cmdline(int argc, char *argv[]) {
 
 	static struct option long_options[] =
 	{
-		{"default-lifetime", required_argument, 0, 0},
-		{"rdnss", required_argument, 0, 1},
-		{"valid-lifetime", required_argument, 0, 2},
-		{"preferred-lifetime", required_argument, 0, 3},
-		{"max-router-adv-interval", required_argument, 0, 4},
-		{"min-router-adv-interval", required_argument, 0, 5},
+		{"default-lifetime", required_argument, 0, OPT_DEFAULT_LIFETIME},
+		{"rdnss", required_argument, 0, OPT_RDNSS},
+		{"valid-lifetime", required_argument, 0, OPT_VALID_LIFETIME},
+		{"preferred-lifetime", required_argument, 0, OPT_PREFERRED_LIFETIME},
+		{"max-router-adv-interval", required_argument, 0, OPT_MAX_ROUTER_ADV_INTERVAL},
+		{"min-router-adv-interval", required_argument, 0, OPT_MIN_ROUTER_ADV_INTERVAL},
 		{0, 0, 0, 0}
 	};
 
@@ -657,7 +666,7 @@ static void parse_cmdline(int argc, char *argv[]) {
 
 	while ((c = getopt_long(argc, argv, "i:a:p:h", long_options, &option_index)) != -1) {
 		switch(c) {
-		case 0: // --default-lifetime
+		case OPT_DEFAULT_LIFETIME:
 			val = strtoul(optarg, &endptr, 0);
 
 			if (!*optarg || *endptr || val > UINT16_MAX)
@@ -667,11 +676,11 @@ static void parse_cmdline(int argc, char *argv[]) {
 
 			break;
 
-		case 1: // --rdnss
+		case OPT_RDNSS:
 			add_rdnss(optarg);
 			break;
 
-		case 2: // --valid-lifetime
+		case OPT_VALID_LIFETIME:
 			val = strtoul(optarg, &endptr, 0);
 
 			if (!*optarg || *endptr || val > UINT32_MAX)
@@ -681,7 +690,7 @@ static void parse_cmdline(int argc, char *argv[]) {
 
 			break;
 
-		case 3: // --preferred-lifetime
+		case OPT_PREFERRED_LIFETIME:
 			val = strtoul(optarg, &endptr, 0);
 
 			if (!*optarg || *endptr || val > UINT32_MAX)
@@ -691,7 +700,7 @@ static void parse_cmdline(int argc, char *argv[]) {
 
 			break;
 
-		case 4: // --max-router-adv-interval
+		case OPT_MAX_ROUTER_ADV_INTERVAL:
 			val = strtoul(optarg, &endptr, 0);
 
 			if (!*optarg || *endptr || val < 4 || val > 1800)
@@ -701,7 +710,7 @@ static void parse_cmdline(int argc, char *argv[]) {
 
 			break;
 
-		case 5: // --min-router-adv-interval
+		case OPT_MIN_ROUTER_ADV_INTERVAL:
 			val = strtoul(optarg, &endptr, 0);
 
 			if (!*optarg || *endptr || val < 3 || val > 1350)
