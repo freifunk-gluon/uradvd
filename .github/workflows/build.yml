@@ -35,5 +35,8 @@ jobs:
       - name: Restore executable permission
         run: chmod u+x uradvd
 
-      - name: Verify usage is in README
-        run: 'grep -qxF "$(./uradvd -h 2>/dev/stdout | head -n1)" README.md'
+      - name: Verify usage lines are in README
+        run: '! grep -vxFf README.md <(./uradvd -h 2>&1)'
+
+      - name: Verify usage lines are less or equal of length 80
+        run: '[ $(./uradvd -h 2>&1 | wc -L) -le 80 ]'

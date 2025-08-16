@@ -56,6 +56,15 @@
 #define MIN_DELAY_BETWEEN_RAS 3000u
 
 
+enum {
+	OPT_DEFAULT_LIFETIME,
+	OPT_RDNSS,
+	OPT_VALID_LIFETIME,
+	OPT_PREFERRED_LIFETIME,
+	OPT_MAX_ROUTER_ADV_INTERVAL,
+	OPT_MIN_ROUTER_ADV_INTERVAL,
+};
+
 struct icmpv6_opt {
 	uint8_t type;
 	uint8_t length;
@@ -89,7 +98,12 @@ static struct global {
 
 	const char *ifname;
 
+	uint32_t adv_valid_lifetime;
+	uint32_t adv_preferred_lifetime;
 	uint16_t adv_default_lifetime;
+
+	uint16_t max_rtr_adv_interval;
+	uint16_t min_rtr_adv_interval;
 
 	size_t n_prefixes;
 	struct in6_addr prefixes[MAX_PREFIXES];
@@ -100,7 +114,11 @@ static struct global {
 } G = {
 	.rtnl_sock = -1,
 	.icmp_sock = -1,
+	.adv_valid_lifetime = AdvValidLifetime,
+	.adv_preferred_lifetime = AdvPreferredLifetime,
 	.adv_default_lifetime = AdvDefaultLifetime,
+	.max_rtr_adv_interval = MaxRtrAdvInterval,
+	.min_rtr_adv_interval = MinRtrAdvInterval,
 };
 
 
@@ -217,7 +235,7 @@ static void schedule_advert(bool nodelay) {
 	if (nodelay)
 		timespec_add(&t, rand_range(0, MAX_RA_DELAY_TIME));
 	else
-		timespec_add(&t, rand_range(MinRtrAdvInterval*1000, MaxRtrAdvInterval*1000));
+		timespec_add(&t, rand_range(G.min_rtr_adv_interval*1000, G.max_rtr_adv_interval*1000));
 
 	if (timespec_after(&G.next_advert_earliest, &t))
 		t = G.next_advert_earliest;
@@ -507,8 +525,8 @@ static void send_advert(void) {
 			.nd_opt_pi_len = 4,
 			.nd_opt_pi_prefix_len = 64,
 			.nd_opt_pi_flags_reserved = flags,
-			.nd_opt_pi_valid_time = htonl(AdvValidLifetime),
-			.nd_opt_pi_preferred_time = htonl(AdvPreferredLifetime),
+			.nd_opt_pi_valid_time = htonl(G.adv_valid_lifetime),
+			.nd_opt_pi_preferred_time = htonl(G.adv_preferred_lifetime),
 			.nd_opt_pi_prefix = G.prefixes[i],
 		};
 	}
@@ -574,7 +592,10 @@ static void send_advert(void) {
 
 
 static void usage(void) {
-	fprintf(stderr, "Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ] [ --default-lifetime <seconds> ] [ --rdnss <ip> ... ]\n");
+	fprintf(stderr, "Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ]\n"
+			"[ --default-lifetime <seconds> ] [ --rdnss <ip> ... ]\n"
+			"[ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ]\n"
+			"[ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]\n");
 }
 
 static void add_rdnss(const char *ip) {
@@ -632,8 +653,12 @@ static void parse_cmdline(int argc, char *argv[]) {
 
 	static struct option long_options[] =
 	{
-		{"default-lifetime", required_argument, 0, 0},
-		{"rdnss", required_argument, 0, 1},
+		[OPT_DEFAULT_LIFETIME] = {"default-lifetime", required_argument, 0, 0},
+		[OPT_RDNSS] = {"rdnss", required_argument, 0, 0},
+		[OPT_VALID_LIFETIME] = {"valid-lifetime", required_argument, 0, 0},
+		[OPT_PREFERRED_LIFETIME] = {"preferred-lifetime", required_argument, 0, 0},
+		[OPT_MAX_ROUTER_ADV_INTERVAL] = {"max-router-adv-interval", required_argument, 0, 0},
+		[OPT_MIN_ROUTER_ADV_INTERVAL] = {"min-router-adv-interval", required_argument, 0, 0},
 		{0, 0, 0, 0}
 	};
 
@@ -641,18 +666,65 @@ static void parse_cmdline(int argc, char *argv[]) {
 
 	while ((c = getopt_long(argc, argv, "i:a:p:h", long_options, &option_index)) != -1) {
 		switch(c) {
-		case 0: // --default-lifetime
-			val = strtoul(optarg, &endptr, 0);
+		case 0:
+			switch(option_index) {
+			case OPT_DEFAULT_LIFETIME:
+				val = strtoul(optarg, &endptr, 0);
 
-			if (!*optarg || *endptr || val > UINT16_MAX)
-				exit_error("invalid default lifetime\n", 0);
+				if (!*optarg || *endptr || val > UINT16_MAX)
+					exit_error("invalid default lifetime\n", 0);
 
-			G.adv_default_lifetime = val;
+				G.adv_default_lifetime = val;
 
-			break;
+				break;
 
-		case 1: // --rdnss
-			add_rdnss(optarg);
+			case OPT_RDNSS:
+				add_rdnss(optarg);
+				break;
+
+			case OPT_VALID_LIFETIME:
+				val = strtoul(optarg, &endptr, 0);
+
+				if (!*optarg || *endptr || val > UINT32_MAX)
+					exit_error("invalid valid lifetime\n", 0);
+
+				G.adv_valid_lifetime = val;
+
+				break;
+
+			case OPT_PREFERRED_LIFETIME:
+				val = strtoul(optarg, &endptr, 0);
+
+				if (!*optarg || *endptr || val > UINT32_MAX)
+					exit_error("invalid preferred lifetime\n", 0);
+
+				G.adv_preferred_lifetime = val;
+
+				break;
+
+			case OPT_MAX_ROUTER_ADV_INTERVAL:
+				val = strtoul(optarg, &endptr, 0);
+
+				if (!*optarg || *endptr || val < 4 || val > 1800)
+					exit_error("invalid maximal router advertisement interval\n", 0);
+
+				G.max_rtr_adv_interval = val;
+
+				break;
+
+			case OPT_MIN_ROUTER_ADV_INTERVAL:
+				val = strtoul(optarg, &endptr, 0);
+
+				if (!*optarg || *endptr || val < 3 || val > 1350)
+					exit_error("invalid minimal router advertisement interval\n", 0);
+
+				G.min_rtr_adv_interval = val;
+
+				break;
+
+			default:
+				exit_error("unknown option index\n", 0);
+			}
 			break;
 
 		case 'i':
@@ -687,6 +759,12 @@ int main(int argc, char *argv[]) {
 
 	if (!G.ifname || !G.n_prefixes)
 		exit_error("interface and prefix arguments are required.\n", 0);
+
+	if (G.adv_preferred_lifetime > G.adv_valid_lifetime)
+		exit_error("The preferred lifetime must be less or equal than the valid lifetime.\n", 0);
+
+	if (G.min_rtr_adv_interval > 0.75*G.max_rtr_adv_interval )
+		exit_error("The mininmal router advertisement interval must not be greater than 0.75 * max-rtr-adv-interval.\n", 0);
 
 	init_random();
 	init_icmp();
