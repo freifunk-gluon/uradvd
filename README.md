@@ -20,3 +20,5 @@ Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ]
 * `--min-router-adv-interval <seconds>`: The minimum time allowed between sending unsolicited multicast router advertisements from the interface, in seconds. (default is `200` seconds => 3m20s)
 
 This program is packaged for [OpenWrt](https://openwrt.org/).
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/uradvd.svg)](https://repology.org/project/uradvd/versions)
