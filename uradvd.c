@@ -41,6 +41,9 @@
 #define MAX_PREFIXES 8
 #define MAX_RDNSS 3
 
+/* This is in bytes */
+#define AdvLinkMTU 0u
+
 /* These are in seconds */
 #define AdvValidLifetime 86400u
 #define AdvPreferredLifetime 14400u
@@ -63,6 +66,7 @@ enum {
 	OPT_PREFERRED_LIFETIME,
 	OPT_MAX_ROUTER_ADV_INTERVAL,
 	OPT_MIN_ROUTER_ADV_INTERVAL,
+	OPT_ADV_LINK_MTU,
 };
 
 struct icmpv6_opt {
@@ -98,6 +102,8 @@ static struct global {
 
 	const char *ifname;
 
+	uint16_t adv_link_mtu;
+
 	uint32_t adv_valid_lifetime;
 	uint32_t adv_preferred_lifetime;
 	uint16_t adv_default_lifetime;
@@ -119,6 +125,7 @@ static struct global {
 	.adv_default_lifetime = AdvDefaultLifetime,
 	.max_rtr_adv_interval = MaxRtrAdvInterval,
 	.min_rtr_adv_interval = MinRtrAdvInterval,
+	.adv_link_mtu = AdvLinkMTU,
 };
 
 
@@ -511,6 +518,8 @@ static void send_advert(void) {
 	struct icmpv6_opt lladdr = {ND_OPT_SOURCE_LINKADDR, 1, {}};
 	memcpy(lladdr.data, G.iface.mac, sizeof(G.iface.mac));
 
+	struct nd_opt_mtu mtu = {ND_OPT_MTU, 1, 0, htonl(G.adv_link_mtu)};
+
 	struct nd_opt_prefix_info prefixes[G.n_prefixes];
 
 	size_t i;
@@ -543,13 +552,22 @@ static void send_advert(void) {
 			memcpy(rdnss_ips[i], G.rdnss[i].s6_addr, 16);
 	}
 
-	struct iovec vec[5] = {
+	struct iovec vec[6] = {
 		{ .iov_base = &advert, .iov_len = sizeof(advert) },
 		{ .iov_base = &lladdr, .iov_len = sizeof(lladdr) },
 		{ .iov_base = prefixes, .iov_len = sizeof(prefixes) },
-		{ .iov_base = &rdnss, .iov_len = sizeof(rdnss) },
-		{ .iov_base = rdnss_ips, .iov_len = sizeof(rdnss_ips) }
 	};
+
+	size_t iovlen = 3;
+
+	if (G.n_rdnss > 0) {
+		vec[iovlen++] = (struct iovec){ .iov_base = &rdnss, .iov_len = sizeof(rdnss)};
+		vec[iovlen++] = (struct iovec){ .iov_base = rdnss_ips, .iov_len = sizeof(rdnss_ips) };
+	}
+
+	if (G.adv_link_mtu > 0) {
+		vec[iovlen++] = (struct iovec){ .iov_base = &mtu, .iov_len = sizeof(mtu) };
+	}
 
 	struct sockaddr_in6 addr = {
 		.sin6_family = AF_INET6,
@@ -571,7 +589,7 @@ static void send_advert(void) {
 		.msg_name = &addr,
 		.msg_namelen = sizeof(addr),
 		.msg_iov = vec,
-		.msg_iovlen = G.n_rdnss > 0 ? 5 : 3,
+		.msg_iovlen = iovlen,
 		.msg_control = cbuf,
 		.msg_controllen = 0,
 		.msg_flags = 0,
@@ -595,7 +613,8 @@ static void usage(void) {
 	fprintf(stderr, "Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ]\n"
 			"[ --default-lifetime <seconds> ] [ --rdnss <ip> ... ]\n"
 			"[ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ]\n"
-			"[ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]\n");
+			"[ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]\n"
+			"[ --adv-link-mtu <bytes> ]\n");
 }
 
 static void add_rdnss(const char *ip) {
@@ -659,6 +678,7 @@ static void parse_cmdline(int argc, char *argv[]) {
 		[OPT_PREFERRED_LIFETIME] = {"preferred-lifetime", required_argument, 0, 0},
 		[OPT_MAX_ROUTER_ADV_INTERVAL] = {"max-router-adv-interval", required_argument, 0, 0},
 		[OPT_MIN_ROUTER_ADV_INTERVAL] = {"min-router-adv-interval", required_argument, 0, 0},
+		[OPT_ADV_LINK_MTU] = {"adv-link-mtu", required_argument, 0, 0},
 		{0, 0, 0, 0}
 	};
 
@@ -719,6 +739,16 @@ static void parse_cmdline(int argc, char *argv[]) {
 					exit_error("invalid minimal router advertisement interval\n", 0);
 
 				G.min_rtr_adv_interval = val;
+
+				break;
+
+			case OPT_ADV_LINK_MTU:
+				val = strtoul(optarg, &endptr, 0);
+
+				if (!*optarg || *endptr || val < 1280 || val > UINT16_MAX)
+					exit_error("invalid advertised link MTU\n", 0);
+
+				G.adv_link_mtu = val;
 
 				break;
 
