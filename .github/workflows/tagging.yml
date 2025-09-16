@@ -1,0 +1,26 @@
+name: Tag new releases
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v5
+
+    - name: Generate git tag
+      run: |
+        GENERATED_TAG="r$(git rev-list --count HEAD)"
+        echo "The newly generated tag is: $GENERATED_TAG"
+        echo "GENERATED_TAG=$GENERATED_TAG" >> $GITHUB_ENV
+
+    - name: Push git tag
+      run: |
+        git config user.name "Gluon CI Bot"
+        git config user.email "bot@freifunk-gluon.github.io"
+        git tag $GENERATED_TAG
+        git push origin $GENERATED_TAG
