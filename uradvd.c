@@ -547,9 +547,14 @@ static void send_advert(void) {
 		{ .iov_base = &advert, .iov_len = sizeof(advert) },
 		{ .iov_base = &lladdr, .iov_len = sizeof(lladdr) },
 		{ .iov_base = prefixes, .iov_len = sizeof(prefixes) },
-		{ .iov_base = &rdnss, .iov_len = sizeof(rdnss) },
-		{ .iov_base = rdnss_ips, .iov_len = sizeof(rdnss_ips) }
 	};
+
+	size_t iovlen = 3;
+
+	if (G.n_rdnss > 0) {
+		vec[iovlen++] = (struct iovec){ .iov_base = &rdnss, .iov_len = sizeof(rdnss)};
+		vec[iovlen++] = (struct iovec){ .iov_base = rdnss_ips, .iov_len = sizeof(rdnss_ips) };
+	}
 
 	struct sockaddr_in6 addr = {
 		.sin6_family = AF_INET6,
@@ -571,7 +576,7 @@ static void send_advert(void) {
 		.msg_name = &addr,
 		.msg_namelen = sizeof(addr),
 		.msg_iov = vec,
-		.msg_iovlen = G.n_rdnss > 0 ? 5 : 3,
+		.msg_iovlen = iovlen,
 		.msg_control = cbuf,
 		.msg_controllen = 0,
 		.msg_flags = 0,
