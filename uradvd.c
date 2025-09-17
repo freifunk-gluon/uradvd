@@ -63,6 +63,7 @@ enum {
 	OPT_PREFERRED_LIFETIME,
 	OPT_MAX_ROUTER_ADV_INTERVAL,
 	OPT_MIN_ROUTER_ADV_INTERVAL,
+	OPT_VERSION,
 };
 
 struct icmpv6_opt {
@@ -595,7 +596,12 @@ static void usage(void) {
 	fprintf(stderr, "Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ]\n"
 			"[ --default-lifetime <seconds> ] [ --rdnss <ip> ... ]\n"
 			"[ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ]\n"
-			"[ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]\n");
+			"[ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]\n"
+			"[ --version ]\n");
+}
+
+static void version(void) {
+	printf("uradvd %s\n", VERSION);
 }
 
 static void add_rdnss(const char *ip) {
@@ -659,6 +665,7 @@ static void parse_cmdline(int argc, char *argv[]) {
 		[OPT_PREFERRED_LIFETIME] = {"preferred-lifetime", required_argument, 0, 0},
 		[OPT_MAX_ROUTER_ADV_INTERVAL] = {"max-router-adv-interval", required_argument, 0, 0},
 		[OPT_MIN_ROUTER_ADV_INTERVAL] = {"min-router-adv-interval", required_argument, 0, 0},
+		[OPT_VERSION] = {"version", 0, 0, 0},
 		{0, 0, 0, 0}
 	};
 
@@ -721,6 +728,10 @@ static void parse_cmdline(int argc, char *argv[]) {
 				G.min_rtr_adv_interval = val;
 
 				break;
+
+			case OPT_VERSION:
+				version();
+				exit(0);
 
 			default:
 				exit_error("unknown option index\n", 0);
