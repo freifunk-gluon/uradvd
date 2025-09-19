@@ -1,5 +1,5 @@
 CFLAGS += -Wall -Wextra
-VERSION = r$(shell git rev-list --count HEAD)-$(shell git rev-parse --short=8 HEAD)
+VERSION = $(shell git rev-list --count HEAD)~$(shell git rev-parse --short=8 HEAD)
 
 all: uradvd
 uradvd: uradvd.o
