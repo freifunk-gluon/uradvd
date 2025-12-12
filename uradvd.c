@@ -44,6 +44,10 @@
 /* This is in bytes */
 #define AdvLinkMTU 0u
 
+#ifndef ND_OPT_PREF64
+#define ND_OPT_PREF64 38 /* RFC8781 */
+#endif
+
 /* These are in seconds */
 #define AdvValidLifetime 86400u
 #define AdvPreferredLifetime 14400u
@@ -70,6 +74,7 @@ enum {
 	OPT_MAX_ROUTER_ADV_INTERVAL,
 	OPT_MIN_ROUTER_ADV_INTERVAL,
 	OPT_ADV_LINK_MTU,
+	OPT_PREF64,
 	OPT_VERSION,
 };
 
@@ -92,6 +97,13 @@ struct __attribute__((__packed__)) _nd_opt_rdnss {
 	uint8_t nd_opt_rdnss_len;
 	uint16_t nd_opt_rdnss_reserved;
 	uint32_t nd_opt_rdnss_lifetime;
+};
+
+struct __attribute__((__packed__)) _nd_opt_pref64 { /* RFC8781, Section 4 */
+	uint8_t nd_opt_pref64_type;
+	uint8_t nd_opt_pref64_len;
+	uint16_t nd_opt_pref64_scaled_lifetime_and_plc; /* 13 bits scaled lifetime in units of 8 seconds, 3 bits plc */
+	uint8_t nd_opt_pref64_prefix[12]; /* 96 bits */
 };
 
 static struct global {
@@ -121,6 +133,10 @@ static struct global {
 
 	size_t n_rdnss;
 	struct in6_addr rdnss[MAX_RDNSS];
+
+	bool pref64_enabled;
+	uint8_t pref64_prefix[12];
+	uint8_t pref64_plc;
 } G = {
 	.rtnl_sock = -1,
 	.icmp_sock = -1,
@@ -566,6 +582,28 @@ static void send_advert(void) {
 			memcpy(rdnss_ips[i], G.rdnss[i].s6_addr, 16);
 	}
 
+	struct _nd_opt_pref64 pref64 = {};
+
+	if (G.pref64_enabled) {
+		pref64.nd_opt_pref64_type = ND_OPT_PREF64;
+		pref64.nd_opt_pref64_len = 2;
+		/*
+		 * RFC8781 Section 4.1: 3 * MaxRtrAdvInterval, but not shorter than
+		 * the Router Lifetime, rounded up to units of 8 seconds and capped
+		 * at the 13-bit maximum of 65528 seconds
+		 */
+		uint32_t lifetime = 3u * G.max_rtr_adv_interval;
+		if (lifetime < G.adv_default_lifetime)
+			lifetime = G.adv_default_lifetime;
+
+		uint16_t scld_lifetime = (lifetime + 7u) / 8u;
+		if (scld_lifetime > 0x1FFF) /* only with --default-lifetime above 65528 */
+			scld_lifetime = 0x1FFF;
+		pref64.nd_opt_pref64_scaled_lifetime_and_plc =
+			htons(scld_lifetime << 3 | (G.pref64_plc & 0x07));
+		memcpy(pref64.nd_opt_pref64_prefix, G.pref64_prefix, sizeof(G.pref64_prefix));
+	}
+
 	struct iovec vec[] = {
 		IOVEC(advert),
 		IOVEC(lladdr),
@@ -573,6 +611,7 @@ static void send_advert(void) {
 		IOVEC_IF(G.n_rdnss > 0, rdnss),
 		IOVEC_IF(G.n_rdnss > 0, rdnss_ips),
 		IOVEC_IF(G.adv_link_mtu > 0, mtu),
+		IOVEC_IF(G.pref64_enabled, pref64),
 	};
 
 	struct sockaddr_in6 addr = {
@@ -620,7 +659,8 @@ static void usage(void) {
 			"[ --default-lifetime <seconds> ] [ --rdnss <ip> ... ]\n"
 			"[ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ]\n"
 			"[ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]\n"
-			"[ --adv-link-mtu <bytes> ] [ --version ]\n");
+			"[ --adv-link-mtu <bytes> ] [ --pref64 <prefix>/<len> ]\n"
+			"[ --version ]\n");
 }
 
 static void version(void) {
@@ -639,6 +679,69 @@ static void add_rdnss(const char *ip) {
 	}
 
 	G.n_rdnss++;
+}
+
+static void add_pref64(const char *prefix) {
+	/* RFC8781 Section 4: Prefix Length Codes */
+	static const struct {
+		const char *str;
+		uint8_t len;
+		uint8_t plc;
+	} lengths[] = {
+		{ "96", 96, 0 },
+		{ "64", 64, 1 },
+		{ "56", 56, 2 },
+		{ "48", 48, 3 },
+		{ "40", 40, 4 },
+		{ "32", 32, 5 },
+	};
+
+	if (G.pref64_enabled) {
+		fprintf(stderr, "uradvd: error: only one PREF64 is supported.\n");
+		exit(1);
+	}
+
+	const size_t len = strlen(prefix)+1;
+	char prefix2[len];
+	memcpy(prefix2, prefix, len);
+
+	char *slash = strchr(prefix2, '/');
+	if (!slash)
+		goto error;
+
+	*slash = 0;
+
+	size_t i;
+	for (i = 0; i < ARRAY_SIZE(lengths); i++) {
+		if (strcmp(slash+1, lengths[i].str) == 0)
+			break;
+	}
+	if (i == ARRAY_SIZE(lengths))
+		goto error;
+
+	struct in6_addr buf;
+	if (inet_pton(AF_INET6, prefix2, &buf) != 1)
+		goto error;
+
+	/* Check that the host part is all-zeroes */
+	static const uint8_t zero[12] = {};
+	if (memcmp(buf.s6_addr + lengths[i].len/8, zero, 16 - lengths[i].len/8) != 0)
+		goto error;
+
+	/* RFC6052 Section 2.2: bits 64 to 71 must be zero (only reachable for /96) */
+	if (buf.s6_addr[8] != 0) {
+		fprintf(stderr, "uradvd: error: invalid PREF64 %s (bits 64 to 71 must be zero).\n", prefix);
+		exit(1);
+	}
+
+	memcpy(G.pref64_prefix, buf.s6_addr, 12);
+	G.pref64_plc = lengths[i].plc;
+	G.pref64_enabled = true;
+	return;
+
+error:
+	fprintf(stderr, "uradvd: error: invalid PREF64 %s (expected <prefix>/<len> with len 32, 40, 48, 56, 64 or 96 and an all-zeroes host part).\n", prefix);
+	exit(1);
 }
 
 static void add_prefix(const char *prefix, bool adv_onlink) {
@@ -689,6 +792,7 @@ static void parse_cmdline(int argc, char *argv[]) {
 		[OPT_MAX_ROUTER_ADV_INTERVAL] = {"max-router-adv-interval", required_argument, 0, 0},
 		[OPT_MIN_ROUTER_ADV_INTERVAL] = {"min-router-adv-interval", required_argument, 0, 0},
 		[OPT_ADV_LINK_MTU] = {"adv-link-mtu", required_argument, 0, 0},
+		[OPT_PREF64] = {"pref64", required_argument, 0, 0},
 		[OPT_VERSION] = {"version", 0, 0, 0},
 		{0, 0, 0, 0}
 	};
@@ -761,6 +865,10 @@ static void parse_cmdline(int argc, char *argv[]) {
 
 				G.adv_link_mtu = val;
 
+				break;
+
+			case OPT_PREF64:
+				add_pref64(optarg);
 				break;
 
 			case OPT_VERSION:
