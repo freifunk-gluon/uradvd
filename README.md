@@ -7,7 +7,7 @@ Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ]
 [ --default-lifetime <seconds> ] [ --rdnss <ip> ... ]
 [ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ]
 [ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]
-[ --adv-link-mtu <bytes> ] [ --version ]
+[ --adv-link-mtu <bytes> ] [ --pref64 <prefix>/<len> ] [ --version ]
 ```
 
 * `-i <interface>`: interface to listen on (e.g. `eth0`)
@@ -20,6 +20,7 @@ Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ]
 * `--max-router-adv-interval <seconds>`: The maximum time allowed between sending unsolicited multicast router advertisements from the interface, in seconds. (default is `600` seconds => 10m)
 * `--min-router-adv-interval <seconds>`: The minimum time allowed between sending unsolicited multicast router advertisements from the interface, in seconds. (default is `200` seconds => 3m20s)
 * `--adv-link-mtu <bytes>`: The MTU option is used in RA messages to ensure that all nodes on a link use the same MTU value in those cases where the link MTU is not well known. (is omitted unless set)
+* `--pref64 <prefix>/<len>`: The NAT64 prefix used for IPv6 address synthesis by clients, as defined in RFC 8781, in CIDR notation.
 * `--version`: Display the version number of the invoked uradvd.
 
 This program is packaged for [OpenWrt](https://openwrt.org/) and [NixOS](https://nixos.org/).
