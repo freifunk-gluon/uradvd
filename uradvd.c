@@ -55,6 +55,9 @@
 #define MAX_RA_DELAY_TIME 500u
 #define MIN_DELAY_BETWEEN_RAS 3000u
 
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*arr))
+#define IOVEC(buf) ((struct iovec){ .iov_base = &(buf), .iov_len = sizeof(buf) })
+#define IOVEC_IF(cond, buf) ((cond) ? IOVEC(buf) : (struct iovec){})
 
 enum {
 	OPT_DEFAULT_LIFETIME,
@@ -436,7 +439,7 @@ static void handle_solicit(void) {
 	struct sockaddr_in6 addr;
 
 	uint8_t buffer[1500] __attribute__((aligned(8)));
-	struct iovec vec = { .iov_base = buffer, .iov_len = sizeof(buffer) };
+	struct iovec vec = IOVEC(buffer);
 
 	uint8_t cbuf[1024] __attribute__((aligned(8)));
 
@@ -544,12 +547,12 @@ static void send_advert(void) {
 			memcpy(rdnss_ips[i], G.rdnss[i].s6_addr, 16);
 	}
 
-	struct iovec vec[5] = {
-		{ .iov_base = &advert, .iov_len = sizeof(advert) },
-		{ .iov_base = &lladdr, .iov_len = sizeof(lladdr) },
-		{ .iov_base = prefixes, .iov_len = sizeof(prefixes) },
-		{ .iov_base = &rdnss, .iov_len = sizeof(rdnss) },
-		{ .iov_base = rdnss_ips, .iov_len = sizeof(rdnss_ips) }
+	struct iovec vec[] = {
+		IOVEC(advert),
+		IOVEC(lladdr),
+		IOVEC(prefixes),
+		IOVEC_IF(G.n_rdnss > 0, rdnss),
+		IOVEC_IF(G.n_rdnss > 0, rdnss_ips),
 	};
 
 	struct sockaddr_in6 addr = {
@@ -572,7 +575,7 @@ static void send_advert(void) {
 		.msg_name = &addr,
 		.msg_namelen = sizeof(addr),
 		.msg_iov = vec,
-		.msg_iovlen = G.n_rdnss > 0 ? 5 : 3,
+		.msg_iovlen = ARRAY_SIZE(vec),
 		.msg_control = cbuf,
 		.msg_controllen = 0,
 		.msg_flags = 0,
