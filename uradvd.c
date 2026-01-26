@@ -83,7 +83,7 @@ struct iface {
 	uint8_t mac[6];
 };
 
-struct __attribute__((__packed__)) nd_opt_rdnss {
+struct __attribute__((__packed__)) _nd_opt_rdnss {
 	uint8_t nd_opt_rdnss_type;
 	uint8_t nd_opt_rdnss_len;
 	uint16_t nd_opt_rdnss_reserved;
@@ -535,7 +535,7 @@ static void send_advert(void) {
 		};
 	}
 
-	struct nd_opt_rdnss rdnss = {};
+	struct _nd_opt_rdnss rdnss = {};
 	uint8_t rdnss_ips[G.n_rdnss][16];
 
 	if (G.n_rdnss > 0) {
