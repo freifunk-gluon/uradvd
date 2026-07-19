@@ -479,20 +479,26 @@ static void handle_solicit(void) {
 	if (s->nd_rs_hdr.icmp6_type != ND_ROUTER_SOLICIT || s->nd_rs_hdr.icmp6_code != 0)
 		return;
 
-	const struct icmpv6_opt *opt = (struct icmpv6_opt *)(buffer + sizeof(struct nd_router_solicit)), *end = (struct icmpv6_opt *)(buffer+len);
+	const uint8_t *opt = buffer + sizeof(struct nd_router_solicit);
+	const uint8_t *end = buffer + len;
 
-	for (; opt < end; opt += opt->length) {
-		if (opt+1 < end)
+	while (opt < end) {
+		if ((size_t)(end - opt) < sizeof(struct icmpv6_opt))
 			return;
 
-		if (!opt->length)
+		const struct icmpv6_opt *cur = (const struct icmpv6_opt *)opt;
+		size_t optlen = (size_t)cur->length * 8;
+
+		if (!optlen)
 			return;
 
-		if (opt+opt->length < end)
+		if (optlen > (size_t)(end - opt))
 			return;
 
-		if (opt->type == ND_OPT_SOURCE_LINKADDR && IN6_IS_ADDR_UNSPECIFIED(&addr.sin6_addr))
+		if (cur->type == ND_OPT_SOURCE_LINKADDR && IN6_IS_ADDR_UNSPECIFIED(&addr.sin6_addr))
 			return;
+
+		opt += optlen;
 	}
 
 	if (opt != end)
