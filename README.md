@@ -7,6 +7,7 @@ Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ]
 [ --default-lifetime <seconds> ] [ --rdnss <ip> ... ]
 [ --valid-lifetime <seconds> ] [ --preferred-lifetime <seconds> ]
 [ --max-router-adv-interval <seconds> ] [ --min-router-adv-interval <seconds> ]
+[ --pref64 <prefix>/<len> ]
 [ --version ]
 ```
 
@@ -19,6 +20,7 @@ Usage: uradvd [-h] -i <interface> -a/-p <prefix> [ -a/-p <prefix> ... ]
 * `--preferred-lifetime <seconds>`: The span of time during which the address can be freely used as a source and destination for traffic. Should be less or equal valid-lifetime. (default is `14400` seconds => 4h)
 * `--max-router-adv-interval <seconds>`: The maximum time allowed between sending unsolicited multicast router advertisements from the interface, in seconds. (default is `600` seconds => 10m)
 * `--min-router-adv-interval <seconds>`: The minimum time allowed between sending unsolicited multicast router advertisements from the interface, in seconds. (default is `200` seconds => 3m20s)
+* `--pref64 <prefix>/<len>`: The NAT64 prefix used for IPv6 address synthesis by clients, as defined in RFC 8781, in CIDR notation.
 * `--version`: Display the version number of the invoked uradvd.
 
 This program is packaged for [OpenWrt](https://openwrt.org/) and [NixOS](https://nixos.org/).
