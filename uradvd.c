@@ -528,7 +528,11 @@ static void send_advert(void) {
 	struct icmpv6_opt lladdr = {ND_OPT_SOURCE_LINKADDR, 1, {}};
 	memcpy(lladdr.data, G.iface.mac, sizeof(G.iface.mac));
 
-	struct nd_opt_mtu mtu = {ND_OPT_MTU, 1, 0, htonl(G.adv_link_mtu)};
+	struct nd_opt_mtu mtu = {
+		.nd_opt_mtu_type = ND_OPT_MTU,
+		.nd_opt_mtu_len = 1,
+		.nd_opt_mtu_mtu = htonl(G.adv_link_mtu),
+	};
 
 	struct nd_opt_prefix_info prefixes[G.n_prefixes];
 
